@@ -49,7 +49,7 @@ import org.apache.jena.atlas.web.ContentType ;
 import org.apache.jena.fuseki.Fuseki ;
 import org.apache.jena.fuseki.FusekiException ;
 import org.apache.jena.fuseki.FusekiLib ;
-import org.apache.jena.fuseki.cache.Cache;
+import org.apache.jena.fuseki.cache.CacheEntry;
 import org.apache.jena.fuseki.cache.CacheAction;
 import org.apache.jena.fuseki.cache.CacheStore;
 import org.apache.jena.riot.web.HttpNames ;
@@ -167,7 +167,7 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
 
     /**
      * Helper method for validating request.
-     * @param request HTTP request
+     * @param action HTTP HttpAction
      * @param params parameters in a collection of Strings
      */
     protected void validateParams(HttpAction action, Collection<String> params) {
@@ -261,23 +261,23 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
             Dataset dataset = decideDataset(action, query, queryStringLog) ;
             SPARQLResult result = null;
             CacheAction cacheAction = null;
-            Cache cache = null;
+            CacheEntry cacheEntry = null;
             try ( QueryExecution qExec = createQueryExecution(query, dataset) ; ) {
                 cacheStore = CacheStore.getInstance();
                 if(cacheStore.initialized){
                     log.info("CacheStore is initialized") ;
                     String key = generateKey(action,queryString) ;
-                    cache = (Cache)cacheStore.doGet(key);
-                    if(cache == null || !cache.isInitialized()) {
+                    cacheEntry = (CacheEntry)cacheStore.doGet(key);
+                    if(cacheEntry == null || !cacheEntry.isInitialized()) {
                         log.info("cache is null or cache data is not initialized ");
                         result = executeQuery(action, qExec, query, queryStringLog);
-                        cache = new Cache();
-                        cache.setResult(result);
-                        cacheStore.doSet(key, cache);
+                        cacheEntry = new CacheEntry();
+                        cacheEntry.setResult(result);
+                        cacheStore.doSet(key, cacheEntry);
                         cacheAction = new CacheAction(key, CacheAction.Type.WRITE_CACHE);
                     }else{
                         log.info("cache is not null so read cache");
-                        result = cache.getResult();
+                        result = cacheEntry.getResult();
                         //StringBuilder s = cache.getCacheBuilder();
                         //log.info("cache StringBuilder "+s.toString());
                         cacheAction = new CacheAction(key,CacheAction.Type.READ_CACHE);
@@ -289,7 +289,7 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
                 }
                 // Deals with exceptions itself.
                 //sendResults(action, result, query.getPrologue()) ;
-                sendResults(action, query, result, query.getPrologue(), cacheAction, cache) ;
+                sendResults(action, query, result, query.getPrologue(), cacheAction, cacheEntry) ;
             }
         } catch (QueryCancelledException ex) {
             // Additional counter information.
@@ -422,13 +422,13 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
                                SPARQLResult result,
                                Prologue qPrologue,
                                CacheAction cacheAction,
-                               Cache cache) {
+                               CacheEntry cacheEntry) {
             if (result.isResultSet())
-                ResponseResultSet.doResponseResultSet(action, result.getResultSet(), qPrologue, cacheAction, cache);
+                ResponseResultSet.doResponseResultSet(action, result.getResultSet(), qPrologue, cacheAction, cacheEntry);
             else if (result.isGraph())
                 ResponseModel.doResponseModel(action, result.getModel());
             else if (result.isBoolean()){
-                ResponseResultSet.doResponseResultSet(action, result.getBooleanResult(), cacheAction, cache);
+                ResponseResultSet.doResponseResultSet(action, result.getBooleanResult(), cacheAction, cacheEntry);
             }
             else
                 ServletOps.errorOccurred("Unknown or invalid result type");

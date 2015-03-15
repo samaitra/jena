@@ -20,7 +20,7 @@ package org.apache.jena.fuseki.cache;
 
 import com.hp.hpl.jena.sparql.resultset.SPARQLResult;
 
-public class Cache {
+public class CacheEntry {
 
     private boolean initialized = false;
 
