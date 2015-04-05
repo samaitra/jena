@@ -236,5 +236,4 @@ public class TestLangTurtle extends BaseTest
 
     @Test (expected=ExWarning.class)
     public void turtle_23()     { parse("@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> . <x> <p> 'number'^^xsd:byte }") ; }
-
 }

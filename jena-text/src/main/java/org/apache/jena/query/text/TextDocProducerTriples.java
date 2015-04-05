@@ -29,15 +29,18 @@ public class TextDocProducerTriples implements TextDocProducer {
     private final EntityDefinition defn ;
     private final TextIndex        indexer ;
     
-    // Also have to have a ThreadLocal here to keep track of whether or not we are in a transaction,
+    // Have to have a ThreadLocal here to keep track of whether or not we are in a transaction,
     // therefore whether or not we have to do autocommit
-    private final ThreadLocal<Boolean> inTransaction = new ThreadLocal<Boolean>() ;
+    private final ThreadLocal<Boolean> inTransaction = new ThreadLocal<Boolean>() {
+        @Override
+        protected Boolean initialValue() {
+            return Boolean.FALSE ;
+        }
+    } ;
     
-
     public TextDocProducerTriples(TextIndex indexer) {
         this.defn = indexer.getDocDef() ;
         this.indexer = indexer ;
-        inTransaction.set(false) ;
     }
 
     @Override

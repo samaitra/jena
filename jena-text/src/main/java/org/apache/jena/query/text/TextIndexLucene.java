@@ -38,6 +38,7 @@ import org.apache.lucene.index.DirectoryReader ;
 import org.apache.lucene.index.IndexReader ;
 import org.apache.lucene.index.IndexWriter ;
 import org.apache.lucene.index.IndexWriterConfig ;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException ;
 import org.apache.lucene.queryparser.classic.QueryParser ;
 import org.apache.lucene.queryparser.classic.QueryParserBase ;
@@ -76,13 +77,13 @@ public class TextIndexLucene implements TextIndex {
     private final Directory        directory ;
     private final Analyzer         analyzer ;
     private final Analyzer         queryAnalyzer ;
-    
+
     // The IndexWriter can't be final because we may have to recreate it if rollback() is called.
     // However, it needs to be volatile in case the next write transaction is on a different thread,
     // but we do not need locking because we are assuming that there can only be one writer
     // at a time (enforced elsewhere).
     private volatile IndexWriter   indexWriter ;
-    
+
     /**
      * Constructs a new TextIndexLucene.
      * 
@@ -100,20 +101,20 @@ public class TextIndexLucene implements TextIndex {
         analyzerPerField.put(def.getEntityField(), new KeywordAnalyzer()) ;
         if ( def.getGraphField() != null )
             analyzerPerField.put(def.getGraphField(), new KeywordAnalyzer()) ;
-        
+
         for (String field : def.fields()) {
-        	Analyzer analyzer = def.getAnalyzer(field);
-        	if (analyzer != null) {
-        		analyzerPerField.put(field, analyzer);
-        	}
+            Analyzer analyzer = def.getAnalyzer(field);
+            if (analyzer != null) {
+                analyzerPerField.put(field, analyzer);
+            }
         }
-        
+
         this.analyzer = new PerFieldAnalyzerWrapper(new StandardAnalyzer(VER), analyzerPerField) ;
         this.queryAnalyzer = (null != queryAnalyzer) ? queryAnalyzer : analyzer ;
 
         openIndexWriter();
     }
-    
+
     private void openIndexWriter() {
         IndexWriterConfig wConfig = new IndexWriterConfig(VER, analyzer) ;
         try
@@ -127,7 +128,7 @@ public class TextIndexLucene implements TextIndex {
             throw new TextIndexException(e) ;
         }
     }
-    
+
     public Directory getDirectory() {
         return directory ;
     }
@@ -135,15 +136,15 @@ public class TextIndexLucene implements TextIndex {
     public Analyzer getAnalyzer() {
         return analyzer ;
     }
-    
+
     public Analyzer getQueryAnalyzer() {
         return queryAnalyzer ;
     }
-    
+
     public IndexWriter getIndexWriter() {
         return indexWriter;
     }
-    
+
     @Override
     public void prepareCommit() {
         try {
@@ -153,7 +154,7 @@ public class TextIndexLucene implements TextIndex {
             throw new TextIndexException(e);
         }
     }
-    
+
     @Override
     public void commit() {
         try {
@@ -163,7 +164,7 @@ public class TextIndexLucene implements TextIndex {
             throw new TextIndexException(e);
         }
     }
-    
+
     @Override
     public void rollback() {
         IndexWriter idx = indexWriter;
@@ -174,7 +175,7 @@ public class TextIndexLucene implements TextIndex {
         catch (IOException e) {
             throw new TextIndexException(e);
         }
-        
+
         // The rollback will close the indexWriter, so we need to reopen it
         openIndexWriter();
     }
@@ -186,6 +187,18 @@ public class TextIndexLucene implements TextIndex {
         }
         catch (IOException ex) {
             throw new TextIndexException(ex) ;
+        }
+    }
+
+    @Override public void updateEntity(Entity entity) {
+        if ( log.isDebugEnabled() )
+            log.debug("Update entity: " + entity) ;
+        try {
+            Document doc = doc(entity);
+            Term term = new Term(docDef.getEntityField(), entity.getId());
+            indexWriter.updateDocument(term, doc);
+        } catch (IOException e) {
+            throw new TextIndexException(e) ;
         }
     }
 
@@ -242,7 +255,7 @@ public class TextIndexLucene implements TextIndex {
         Query query = queryParser.parse(queryString) ;
         return query ;
     }
-    
+
     private List<Map<String, Node>> get$(IndexReader indexReader, String uri) throws ParseException, IOException {
         String escaped = QueryParserBase.escape(uri) ;
         String qs = docDef.getEntityField() + ":" + escaped ;

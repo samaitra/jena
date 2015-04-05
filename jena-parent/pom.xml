@@ -16,22 +16,22 @@
    limitations under the License.
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.apache.jena</groupId>
   <artifactId>jena-parent</artifactId>
   <packaging>pom</packaging>
   <url>http://jena.apache.org/</url>
-  <version>12-SNAPSHOT</version>
+  <version>13-SNAPSHOT</version>
   <name>Apache Jena - Parent</name>
 
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>14</version>
-    <relativePath /> <!-- MNG-4687 Avoid warning -->
+    <!-- This version number is also in the top POM -->
+    <version>16</version>
+    <relativePath />
   </parent>
 
   <licenses>
@@ -368,7 +368,7 @@
         <executions>
           <execution>
             <id>rat-checks</id>
-            <phase>verify</phase>
+            <phase>validate</phase>
             <goals>
               <goal>check</goal>
             </goals>
@@ -453,8 +453,9 @@
 	       <exclude>**/*.classpath</exclude>
 
 	       <!-- Exclude anything created during the build (plugin generated files) ->-->
-         <exclude>**/target/**/*</exclude>
-
+	       <exclude>**/target/**/*</exclude>
+	       <!-- MSHADE-124 -->
+	       <exclude>**/dependency-reduced-pom.xml</exclude>
             </excludes>
         </configuration>
       </plugin>
@@ -664,6 +665,12 @@
           <version>2.5.3</version>
           <extensions>true</extensions>
         </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.3</version>
+      </plugin>
+
 
       </plugins>
     </pluginManagement>
