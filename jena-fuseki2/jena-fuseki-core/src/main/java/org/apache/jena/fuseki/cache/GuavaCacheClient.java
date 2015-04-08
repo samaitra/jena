@@ -43,16 +43,16 @@ public class GuavaCacheClient extends CacheClient{
                 .expireAfterWrite(EXPIRE_TIME, TimeUnit.MINUTES)
                 .build();
     }
-
+    @Override
     public Object get(Object key) throws InterruptedException, ExecutionException, TimeoutException {
         return cache.getIfPresent(key);
    }
-
+    @Override
     public boolean set(Object key, Object value) throws InterruptedException, ExecutionException, TimeoutException {
         cache.put(key,value);
         return true;
     }
-
+    @Override
     public boolean unset(Object key) throws InterruptedException, ExecutionException, TimeoutException {
         cache.invalidate(key);
         return true;
