@@ -19,12 +19,18 @@
 
 package org.apache.jena.fuseki.cache;
 
+import com.hp.hpl.jena.sparql.SystemARQ;
+import org.apache.jena.atlas.io.InputStreamBuffered;
 import org.apache.jena.fuseki.Fuseki;
 import org.apache.jena.fuseki.servlets.ActionLib;
 import org.apache.jena.fuseki.servlets.HttpAction;
 import org.slf4j.Logger;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 
 public class CacheStore {
 
@@ -40,8 +46,15 @@ public class CacheStore {
     /** thread pool size for this data store */
     protected int defaultThreadPoolSize = 500 ;
 
+    private static final Properties prop = new Properties();
+
+    private static final String PROPERTIES_FILENAME = "cache.properties";
+
     /** client for interacting with  Cache store **/
-    private final CacheClient client = new GuavaCacheClient();
+    private CacheClient client;
+
+
+        private String cacheType;
 
     private static CacheStore instance;
 
@@ -63,8 +76,27 @@ public class CacheStore {
     public synchronized static void init(){
         if ( initialized )
             return ;
+        loadProperties();
         initialized = true ;
 
+    }
+
+    public void initClient(){
+
+        cacheType = prop.getProperty("cache.type");
+        getInstance().setCacheType(cacheType);
+        switch (cacheType) {
+            case "memcached":
+                log.info("Initialise memcached client");
+                System.setProperty("memcached.host",prop.getProperty("memcached.host"));
+                System.setProperty("memcached.port",prop.getProperty("memcached.port"));
+                client = ClientFactory.getClient("memcached");
+                break;
+            case "guava":
+                log.info("Initialise guava client");
+                client = ClientFactory.getClient("guava");
+                break;
+        }
     }
 
     /**
@@ -72,6 +104,10 @@ public class CacheStore {
      * @param key Cache store key
      */
     public Object doGet(String key) throws CacheStoreException{
+
+        if(client == null)
+            initClient();
+
         try{
         Object data = client.get(key);
             if(data == null)
@@ -89,6 +125,10 @@ public class CacheStore {
      * @param data SPARQL Query results set object
      */
     public boolean doSet(String key, Object data) throws CacheStoreException{
+
+        if(client==null)
+            initClient();
+
         try{
           if(client.set(key,data))
               return true;
@@ -105,6 +145,10 @@ public class CacheStore {
      *
      */
     public boolean doUnset(String key) throws CacheStoreException{
+
+        if(client == null)
+            initClient();
+
         try{
            if(client.unset(key))
                return true;
@@ -127,7 +171,18 @@ public class CacheStore {
         log.info("CacheStore Key " +dataSetUri+" "+queryString);
         return dataSetUri+" "+queryString;
     }
+    private static void loadProperties(){
 
+        InputStream in = getInstance().getClass().getResourceAsStream(PROPERTIES_FILENAME);
+        if(null != in) {
+            try {
+                prop.load(in);
+            } catch (IOException ex) {
+                log.error("PROPERTIES FILE NOT FOUND " + PROPERTIES_FILENAME, ex);
+            }
+
+        }
+    }
     /** Getters / Setters */
 
     public int getDefaultExecutionTimeout() {
@@ -146,5 +201,15 @@ public class CacheStore {
         this.defaultThreadPoolSize = defaultThreadPoolSize;
     }
 
-   /** Getters / Setters */
+    public String getCacheType() {
+        return cacheType;
+    }
+
+
+    public void setCacheType(String cacheType) {
+        this.cacheType = cacheType;
+    }
+
+
+    /** Getters / Setters */
 }

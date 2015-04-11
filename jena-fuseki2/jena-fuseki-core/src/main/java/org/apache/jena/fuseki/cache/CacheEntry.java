@@ -18,23 +18,25 @@
 
 package org.apache.jena.fuseki.cache;
 
-import com.hp.hpl.jena.sparql.resultset.SPARQLResult;
+//import com.hp.hpl.jena.sparql.resultset.SPARQLResult;
 
-public class CacheEntry {
+import java.io.Serializable;
+
+public class CacheEntry implements Serializable {
 
     private boolean initialized = false;
 
-    private SPARQLResult result;
+    //private SPARQLResult result;
 
     private StringBuilder cacheBuilder;
 
-    public SPARQLResult getResult() {
-        return result;
-    }
-
-    public void setResult(SPARQLResult result) {
-        this.result = result;
-    }
+//    public SPARQLResult getResult() {
+//        return result;
+//    }
+//
+//    public void setResult(SPARQLResult result) {
+//        this.result = result;
+//    }
 
     public StringBuilder getCacheBuilder() {
         return cacheBuilder;

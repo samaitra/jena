@@ -272,12 +272,13 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
                         log.info("cache is null or cache data is not initialized ");
                         result = executeQuery(action, qExec, query, queryStringLog);
                         cacheEntry = new CacheEntry();
-                        cacheEntry.setResult(result);
-                        cacheStore.doSet(key, cacheEntry);
+                        //cacheEntry.setResult(result);
+                        //cacheStore.doSet(key, cacheEntry);
                         cacheAction = new CacheAction(key, CacheAction.Type.WRITE_CACHE);
                     }else{
                         log.info("cache is not null so read cache");
-                        result = cacheEntry.getResult();
+                        result = executeQuery(action, qExec, query, queryStringLog);
+                        //result = cacheEntry.getResult();
                         //StringBuilder s = cache.getCacheBuilder();
                         //log.info("cache StringBuilder "+s.toString());
                         cacheAction = new CacheAction(key,CacheAction.Type.READ_CACHE);
