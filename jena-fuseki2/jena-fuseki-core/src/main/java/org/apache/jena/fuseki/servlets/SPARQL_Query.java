@@ -49,18 +49,13 @@ import org.apache.jena.atlas.web.ContentType ;
 import org.apache.jena.fuseki.Fuseki ;
 import org.apache.jena.fuseki.FusekiException ;
 import org.apache.jena.fuseki.FusekiLib ;
-import org.apache.jena.fuseki.cache.CacheEntry;
-import org.apache.jena.fuseki.cache.CacheAction;
-import org.apache.jena.fuseki.cache.CacheStore;
+import org.apache.jena.query.* ;
+import org.apache.jena.rdf.model.Model ;
 import org.apache.jena.riot.web.HttpNames ;
 import org.apache.jena.riot.web.HttpOp ;
+import org.apache.jena.sparql.core.Prologue ;
+import org.apache.jena.sparql.resultset.SPARQLResult ;
 import org.apache.jena.web.HttpSC ;
-
-import com.hp.hpl.jena.query.* ;
-import com.hp.hpl.jena.rdf.model.Model ;
-import com.hp.hpl.jena.sparql.core.Prologue ;
-import com.hp.hpl.jena.sparql.resultset.SPARQLResult ;
-import org.slf4j.Logger;
 
 /** Handle SPARQL Query requests overt eh SPARQL Protocol. 
  * Subclasses provide this algorithm with the actual dataset to query, whether
@@ -69,12 +64,8 @@ import org.slf4j.Logger;
  */ 
 public abstract class SPARQL_Query extends SPARQL_Protocol
 {
-    private static Logger log = Fuseki.cacheLog ;
-
     private static final String QueryParseBase = Fuseki.BaseParserSPARQL ;
-
-    private CacheStore cacheStore;
-
+    
     public SPARQL_Query() {
         super() ;
     }
@@ -167,7 +158,7 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
 
     /**
      * Helper method for validating request.
-     * @param action HTTP HttpAction
+     * @param request HTTP request
      * @param params parameters in a collection of Strings
      */
     protected void validateParams(HttpAction action, Collection<String> params) {
@@ -248,7 +239,7 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
         } catch (ActionErrorException ex) {
             throw ex ;
         } catch (QueryParseException ex) {
-            ServletOps.errorBadRequest("Parse error: \n" + queryString + "\n\r" + messageForQPE(ex)) ;
+            ServletOps.errorBadRequest("Parse error: \n" + queryString + "\n\r" + messageForQueryException(ex)) ;
         }
         // Should not happen.
         catch (QueryException ex) {
@@ -259,40 +250,17 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
         try {
             action.beginRead() ;
             Dataset dataset = decideDataset(action, query, queryStringLog) ;
-            SPARQLResult result = null;
-            CacheAction cacheAction = null;
-            CacheEntry cacheEntry = null;
             try ( QueryExecution qExec = createQueryExecution(query, dataset) ; ) {
-                cacheStore = CacheStore.getInstance();
-                if(cacheStore.initialized){
-                    log.info("CacheStore is initialized") ;
-                    String key = generateKey(action,queryString) ;
-                    cacheEntry = (CacheEntry)cacheStore.doGet(key);
-                    if(cacheEntry == null || !cacheEntry.isInitialized()) {
-                        log.info("cache is null or cache data is not initialized ");
-                        result = executeQuery(action, qExec, query, queryStringLog);
-                        cacheEntry = new CacheEntry();
-                        //cacheEntry.setResult(result);
-                        //cacheStore.doSet(key, cacheEntry);
-                        cacheAction = new CacheAction(key, CacheAction.Type.WRITE_CACHE);
-                    }else{
-                        log.info("cache is not null so read cache");
-                        result = executeQuery(action, qExec, query, queryStringLog);
-                        //result = cacheEntry.getResult();
-                        //StringBuilder s = cache.getCacheBuilder();
-                        //log.info("cache StringBuilder "+s.toString());
-                        cacheAction = new CacheAction(key,CacheAction.Type.READ_CACHE);
-                    }
-                }else {
-                    log.info("CacheStore is not initialized");
-                    result = executeQuery(action, qExec, query, queryStringLog);
-                    cacheAction = new CacheAction("",CacheAction.Type.IDLE);
-                }
+                SPARQLResult result = executeQuery(action, qExec, query, queryStringLog) ;
                 // Deals with exceptions itself.
-                //sendResults(action, result, query.getPrologue()) ;
-                sendResults(action, query, result, query.getPrologue(), cacheAction, cacheEntry) ;
+                sendResults(action, result, query.getPrologue()) ;
             }
-        } catch (QueryCancelledException ex) {
+        } 
+        catch (QueryParseException ex) {
+            // Late stage static error (e.g. bad fixed Lucene query string). 
+            ServletOps.errorBadRequest("Query parse error: \n" + queryString + "\n\r" + messageForQueryException(ex)) ;
+        }
+        catch (QueryCancelledException ex) {
             // Additional counter information.
             incCounter(action.getEndpoint().getCounters(), QueryTimeouts) ;
             throw ex ;
@@ -418,23 +386,6 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
             ServletOps.errorOccurred("Unknown or invalid result type") ;
     }
 
-    protected void sendResults(HttpAction action,
-                               Query query,
-                               SPARQLResult result,
-                               Prologue qPrologue,
-                               CacheAction cacheAction,
-                               CacheEntry cacheEntry) {
-            if (result.isResultSet())
-                ResponseResultSet.doResponseResultSet(action, result.getResultSet(), qPrologue, cacheAction, cacheEntry);
-            else if (result.isGraph())
-                ResponseModel.doResponseModel(action, result.getModel());
-            else if (result.isBoolean()){
-                ResponseResultSet.doResponseResultSet(action, result.getBooleanResult(), cacheAction, cacheEntry);
-            }
-            else
-                ServletOps.errorOccurred("Unknown or invalid result type");
-    }
-
     private String formatForLog(Query query) {
         IndentedLineBuffer out = new IndentedLineBuffer() ;
         out.setFlatMode(true) ;
@@ -446,7 +397,4 @@ public abstract class SPARQL_Query extends SPARQL_Protocol
         return HttpOp.execHttpGetString(queryURI) ;
     }
 
-    private String generateKey(HttpAction action , String queryString){
-        return CacheStore.generateKey(action,queryString);
-    }
 }

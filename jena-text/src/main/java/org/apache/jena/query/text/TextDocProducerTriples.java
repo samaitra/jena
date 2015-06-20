@@ -18,11 +18,10 @@
 
 package org.apache.jena.query.text ;
 
+import org.apache.jena.graph.Node ;
+import org.apache.jena.sparql.core.QuadAction ;
 import org.slf4j.Logger ;
 import org.slf4j.LoggerFactory ;
-
-import com.hp.hpl.jena.graph.Node ;
-import com.hp.hpl.jena.sparql.core.QuadAction ;
 
 public class TextDocProducerTriples implements TextDocProducer {
     private static Logger          log     = LoggerFactory.getLogger(TextDocProducerTriples.class) ;
@@ -57,17 +56,29 @@ public class TextDocProducerTriples implements TextDocProducer {
     public void change(QuadAction qaction, Node g, Node s, Node p, Node o) {
         // One document per triple/quad
 
-        if ( qaction != QuadAction.ADD )
+        if ( qaction != QuadAction.ADD &&
+             qaction != QuadAction.DELETE )
             return ;
+
 
         Entity entity = TextQueryFuncs.entityFromQuad(defn, g, s, p, o) ;
         // Null means does not match defn
         if ( entity != null ) {
-            indexer.addEntity(entity) ;
-            
-            // Auto commit the entity if we aren't in a transaction
-            if (!inTransaction.get()) {
-                indexer.commit() ;
+            if (qaction == QuadAction.ADD) {
+                indexer.addEntity(entity);
+
+                // Auto commit the entity if we aren't in a transaction
+                if (!inTransaction.get()) {
+                    indexer.commit();
+                }
+            }
+            else if (qaction == QuadAction.DELETE) {
+                indexer.deleteEntity(entity);
+
+                // Auto commit the entity if we aren't in a transaction
+                if (!inTransaction.get()) {
+                    indexer.commit();
+                }
             }
         }
     }

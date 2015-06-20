@@ -18,8 +18,8 @@
 
 package org.apache.jena.fuseki.servlets;
 
-import static com.hp.hpl.jena.query.ReadWrite.READ ;
-import static com.hp.hpl.jena.query.ReadWrite.WRITE ;
+import static org.apache.jena.query.ReadWrite.READ ;
+import static org.apache.jena.query.ReadWrite.WRITE ;
 
 import java.util.HashMap ;
 import java.util.Map ;
@@ -33,13 +33,12 @@ import org.apache.jena.fuseki.DEF ;
 import org.apache.jena.fuseki.conneg.ConNeg ;
 import org.apache.jena.fuseki.server.DatasetRef ;
 import org.apache.jena.fuseki.server.ServiceRef ;
-
-import com.hp.hpl.jena.query.ReadWrite ;
-import com.hp.hpl.jena.sparql.SystemARQ ;
-import com.hp.hpl.jena.sparql.core.DatasetGraph ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphWithLock ;
-import com.hp.hpl.jena.sparql.core.DatasetGraphWrapper ;
-import com.hp.hpl.jena.sparql.core.Transactional ;
+import org.apache.jena.query.ReadWrite ;
+import org.apache.jena.sparql.SystemARQ ;
+import org.apache.jena.sparql.core.DatasetGraph ;
+import org.apache.jena.sparql.core.DatasetGraphWithLock ;
+import org.apache.jena.sparql.core.DatasetGraphWrapper ;
+import org.apache.jena.sparql.core.Transactional ;
 
 /**
  * HTTP action that represents the user request lifecycle. Its state is handled in the
@@ -112,13 +111,18 @@ public class HttpAction
         this.dsRef = desc ;
         this.dsg = desc.dataset ;
         DatasetGraph basedsg = unwrap(dsg) ;
-
-        if ( isTransactional(basedsg) && isTransactional(dsg) ) {
+        
+        if ( isTransactional(dsg) ) {
             // Use transactional if it looks safe - abort is necessary.
+            // It is the responsibility of dsg to manage the basedsg
+            // if the basedsg is not transactional.
             transactional = (Transactional)dsg ;
             isTransactional = true ;
+        } else if ( isTransactional(basedsg) ) {
+            transactional = (Transactional)basedsg ;
+            // Intermediates may be stateful so there is no real abort. 
+            isTransactional = false ;
         } else {
-            // Unsure if safe
             transactional = new DatasetGraphWithLock(dsg) ;
             // No real abort.
             isTransactional = false ;

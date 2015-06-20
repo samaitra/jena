@@ -36,11 +36,10 @@ import org.apache.jena.atlas.RuntimeIOException ;
 import org.apache.jena.fuseki.Fuseki ;
 import org.apache.jena.fuseki.HttpNames ;
 import org.apache.jena.fuseki.server.* ;
+import org.apache.jena.query.ARQ ;
+import org.apache.jena.query.QueryCancelledException ;
+import org.apache.jena.sparql.util.Context ;
 import org.apache.jena.web.HttpSC ;
-
-import com.hp.hpl.jena.query.ARQ ;
-import com.hp.hpl.jena.query.QueryCancelledException ;
-import com.hp.hpl.jena.sparql.util.Context ;
 
 /**
  * Base servlet for SPARQL requests.
@@ -300,7 +299,7 @@ public abstract class SPARQL_ServletBase extends ServletBase
                 String h = en.nextElement() ;
                 Enumeration<String> vals = action.request.getHeaders(h) ;
                 if (!vals.hasMoreElements())
-                    log.info(format("[%d]   ", action.id, h)) ;
+                    log.info(format("[%d]   %s", action.id, h)) ;
                 else {
                     for (; vals.hasMoreElements();)
                         log.info(format("[%d]   %-20s %s", action.id, h, vals.nextElement())) ;
